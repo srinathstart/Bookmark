@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+*.pyc
+bookmarks.db
+.env
+test_openai.py
