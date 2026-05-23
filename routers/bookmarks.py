@@ -43,13 +43,20 @@ def create_bookmark(
 @router.get("/", response_model=list[Bookmark])
 def get_bookmarks(
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
+    current_user: models.User = Depends(get_current_user),
+    search: str | None = None
 ):
-    return (
+    query = (
         db.query(models.Bookmark)
         .filter(models.Bookmark.user_id == current_user.id)
-        .all()
     )
+
+    if search:
+        query = query.filter(
+            models.Bookmark.title.ilike(f"%{search}%")
+        )
+
+    return query.all()
 
 
 # ✅ READ ONE
