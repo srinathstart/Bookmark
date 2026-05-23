@@ -11,6 +11,8 @@ class Bookmark(BaseModel):
     url: str
     title: str
     description: str | None
+    summary: str | None = None
+
 
     model_config = {"from_attributes": True}
 

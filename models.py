@@ -29,6 +29,11 @@ class Bookmark(Base):
         String,
         nullable=True
     )
+    
+    summary = Column(
+        String, 
+        nullable=True
+    )
 
     user_id = Column(
         Integer,

@@ -4,6 +4,7 @@ from database import get_db
 import models
 from schemas import BookmarkCreate, Bookmark
 from auth import get_current_user
+from services.ai import fetch_page_text, generate_summary
 
 router = APIRouter(prefix="/bookmarks", tags=["bookmarks"])
 
@@ -15,10 +16,19 @@ def create_bookmark(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
+    url_str = str(bookmark.url)
+
+    # Try to generate a summary, but don't fail the request if it doesn't work
+    summary = None
+    page_text = fetch_page_text(url_str)
+    if page_text:
+        summary = generate_summary(page_text)
+
     new_bookmark = models.Bookmark(
         url=str(bookmark.url),
         title=bookmark.title,
         description=bookmark.description,
+        summary=summary,
         user_id=current_user.id
     )
 
