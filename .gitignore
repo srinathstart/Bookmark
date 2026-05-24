@@ -2,5 +2,6 @@
 __pycache__/
 *.pyc
 bookmarks.db
-.env
+test.db
+*.env
 test_openai.py
