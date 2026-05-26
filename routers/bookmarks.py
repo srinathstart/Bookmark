@@ -101,7 +101,12 @@ def update_bookmark(
     if bookmark is None:
         raise HTTPException(status_code=404, detail="Bookmark not found")
 
-    bookmark.url = str(updated.url)
+    new_url = str(updated.url)
+    if new_url != bookmark.url:
+        page_text = fetch_page_text(new_url)
+        bookmark.summary = generate_summary(page_text) if page_text else None
+
+    bookmark.url = new_url
     bookmark.title = updated.title
     bookmark.description = updated.description
 
