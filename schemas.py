@@ -1,4 +1,4 @@
-from pydantic import BaseModel, HttpUrl, EmailStr
+from pydantic import BaseModel, HttpUrl, EmailStr, field_validator
 
 class BookmarkCreate(BaseModel):
     url: HttpUrl
@@ -19,6 +19,13 @@ class Bookmark(BaseModel):
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
+
+    @field_validator("password")
+    @classmethod
+    def password_min_length(cls, v):
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        return v
 
 class User(BaseModel):
     id: int

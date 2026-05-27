@@ -52,3 +52,27 @@ def test_login_nonexistent_user(client):
         "password": "secret123"
     })
     assert response.status_code == 401
+
+
+def test_register_password_too_short(client):
+    response = client.post("/register", json={
+        "email": "test@example.com",
+        "password": "abc"
+    })
+    assert response.status_code == 422
+
+
+def test_register_password_exactly_8_characters(client):
+    response = client.post("/register", json={
+        "email": "test@example.com",
+        "password": "exactly8"
+    })
+    assert response.status_code == 200
+
+
+def test_register_empty_password(client):
+    response = client.post("/register", json={
+        "email": "test@example.com",
+        "password": ""
+    })
+    assert response.status_code == 422
