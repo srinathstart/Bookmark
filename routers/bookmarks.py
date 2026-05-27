@@ -10,7 +10,7 @@ router = APIRouter(prefix="/bookmarks", tags=["bookmarks"])
 
 
 # ✅ CREATE
-@router.post("/", response_model=Bookmark)
+@router.post("/", response_model=Bookmark, status_code=201)
 def create_bookmark(
     bookmark: BookmarkCreate,
     db: Session = Depends(get_db),
@@ -117,7 +117,7 @@ def update_bookmark(
 
 
 # ✅ DELETE
-@router.delete("/{bookmark_id}")
+@router.delete("/{bookmark_id}", status_code=204)
 def delete_bookmark(
     bookmark_id: int,
     db: Session = Depends(get_db),
@@ -137,5 +137,3 @@ def delete_bookmark(
 
     db.delete(bookmark)
     db.commit()
-
-    return {"message": "Bookmark deleted successfully"}

@@ -3,7 +3,7 @@ def test_register_success(client):
         "email": "test@example.com",
         "password": "secret123"
     })
-    assert response.status_code == 200
+    assert response.status_code == 201
     assert response.json()["email"] == "test@example.com"
 
 
@@ -67,7 +67,7 @@ def test_register_password_exactly_8_characters(client):
         "email": "test@example.com",
         "password": "exactly8"
     })
-    assert response.status_code == 200
+    assert response.status_code == 201
 
 
 def test_register_empty_password(client):
@@ -76,3 +76,11 @@ def test_register_empty_password(client):
         "password": ""
     })
     assert response.status_code == 422
+
+
+from auth import create_access_token
+
+def test_malformed_token_sub_returns_401(client):
+    bad_token = create_access_token(data={"sub": "not-a-number"})
+    response = client.get("/bookmarks/", headers={"Authorization": f"Bearer {bad_token}"})
+    assert response.status_code == 401

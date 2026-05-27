@@ -9,7 +9,7 @@ from auth import hash_password, verify_password, create_access_token
 router = APIRouter(tags=["users"])
 
 
-@router.post("/register", response_model=User)
+@router.post("/register", response_model=User, status_code=201)
 def register_user(
     user: UserCreate,
     db: Session = Depends(get_db)

@@ -15,7 +15,7 @@ def test_create_bookmark(client):
         "title": "Example Site",
         "description": "A test bookmark"
     }, headers=auth_headers(token))
-    assert response.status_code == 200
+    assert response.status_code == 201
     assert response.json()["title"] == "Example Site"
     assert response.json()["url"] == "https://example.com/"
 
@@ -93,7 +93,7 @@ def test_delete_bookmark(client):
                           headers=headers).json()
 
     response = client.delete(f"/bookmarks/{created['id']}", headers=headers)
-    assert response.status_code == 200
+    assert response.status_code == 204
 
     response = client.get(f"/bookmarks/{created['id']}", headers=headers)
     assert response.status_code == 404
