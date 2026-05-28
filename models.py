@@ -16,22 +16,22 @@ class Bookmark(Base):
     )
 
     url = Column(
-        String,
+        String(2048),
         nullable=False
     )
 
     title = Column(
-        String,
+        String(255),
         nullable=False
     )
 
     description = Column(
-        String,
+        String(500),
         nullable=True
     )
     
     summary = Column(
-        String, 
+        String(1000), 
         nullable=True
     )
 
@@ -45,7 +45,7 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    email = Column(String, unique=True, index=True, nullable=False)
-    hashed_password = Column(String, nullable=False)
+    email = Column(String(255), unique=True, index=True, nullable=False)
+    hashed_password = Column(String(255), nullable=False)
 
     
