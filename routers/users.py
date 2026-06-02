@@ -11,7 +11,9 @@ router = APIRouter(tags=["users"])
 
 
 @router.post("/register", response_model=User, status_code=201)
+@limiter.limit("3/minute")
 def register_user(
+    request: Request,
     user: UserCreate,
     db: Session = Depends(get_db)
 ):
