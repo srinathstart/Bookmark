@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 from sqlalchemy.orm import Session
 from database import get_db
 import models
@@ -44,7 +44,9 @@ def create_bookmark(
 def get_bookmarks(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
-    search: str | None = None
+    search: str | None = None,
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0)
 ):
     query = (
         db.query(models.Bookmark)
@@ -56,7 +58,7 @@ def get_bookmarks(
             models.Bookmark.title.ilike(f"%{search}%")
         )
 
-    return query.all()
+    return query.offset(offset).limit(limit).all()
 
 
 # ✅ READ ONE
