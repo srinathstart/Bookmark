@@ -1,3 +1,4 @@
+from datetime import datetime
 from pydantic import BaseModel, HttpUrl, EmailStr, field_validator
 
 class BookmarkCreate(BaseModel):
@@ -12,6 +13,8 @@ class Bookmark(BaseModel):
     title: str
     description: str | None
     summary: str | None = None
+    created_at: datetime
+    updated_at: datetime
 
 
     model_config = {"from_attributes": True}

@@ -5,6 +5,11 @@ from sqlalchemy.orm import sessionmaker
 
 from main import app
 from database import Base, get_db
+from limiter import limiter
+
+# Rate limiting is a production concern; disable it so test volume
+# doesn't trip the per-minute caps on /register and /login.
+limiter.enabled = False
 
 # Use a separate in-memory database for tests
 TEST_DATABASE_URL = "sqlite:///./test.db"

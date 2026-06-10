@@ -110,3 +110,49 @@ def test_search_bookmarks(client):
     assert response.status_code == 200
     assert len(response.json()) == 1
     assert response.json()[0]["title"] == "Python Docs"
+
+
+def test_bookmark_has_timestamps(client):
+    token = get_auth_token(client)
+    headers = auth_headers(token)
+
+    created = client.post("/bookmarks/", json={"url": "https://example.com", "title": "Timed"},
+                          headers=headers).json()
+
+    assert created["created_at"] is not None
+    assert created["updated_at"] is not None
+
+
+def test_bookmarks_default_sort_is_newest_first(client):
+    token = get_auth_token(client)
+    headers = auth_headers(token)
+
+    first = client.post("/bookmarks/", json={"url": "https://a.com", "title": "First"},
+                        headers=headers).json()
+    second = client.post("/bookmarks/", json={"url": "https://b.com", "title": "Second"},
+                         headers=headers).json()
+
+    response = client.get("/bookmarks/", headers=headers)
+    ids = [b["id"] for b in response.json()]
+    # Newest (second) should come before oldest (first)
+    assert ids.index(second["id"]) < ids.index(first["id"])
+
+
+def test_bookmarks_sort_by_title_ascending(client):
+    token = get_auth_token(client)
+    headers = auth_headers(token)
+
+    client.post("/bookmarks/", json={"url": "https://a.com", "title": "Banana"}, headers=headers)
+    client.post("/bookmarks/", json={"url": "https://b.com", "title": "Apple"}, headers=headers)
+
+    response = client.get("/bookmarks/?sort_by=title&order=asc", headers=headers)
+    titles = [b["title"] for b in response.json()]
+    assert titles == ["Apple", "Banana"]
+
+
+def test_bookmarks_invalid_sort_field_rejected(client):
+    token = get_auth_token(client)
+    headers = auth_headers(token)
+
+    response = client.get("/bookmarks/?sort_by=password", headers=headers)
+    assert response.status_code == 422

@@ -1,3 +1,4 @@
+from typing import Literal
 from fastapi import APIRouter, HTTPException, Depends, Query
 from sqlalchemy.orm import Session
 from database import get_db
@@ -40,13 +41,22 @@ def create_bookmark(
 
 
 # ✅ READ ALL
+SORT_COLUMNS = {
+    "created_at": models.Bookmark.created_at,
+    "updated_at": models.Bookmark.updated_at,
+    "title": models.Bookmark.title,
+}
+
+
 @router.get("/", response_model=list[Bookmark])
 def get_bookmarks(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
     search: str | None = None,
     limit: int = Query(default=20, ge=1, le=100),
-    offset: int = Query(default=0, ge=0)
+    offset: int = Query(default=0, ge=0),
+    sort_by: Literal["created_at", "updated_at", "title"] = "created_at",
+    order: Literal["asc", "desc"] = "desc"
 ):
     query = (
         db.query(models.Bookmark)
@@ -57,6 +67,12 @@ def get_bookmarks(
         query = query.filter(
             models.Bookmark.title.ilike(f"%{search}%")
         )
+
+    sort_column = SORT_COLUMNS[sort_by]
+    if order == "desc":
+        query = query.order_by(sort_column.desc(), models.Bookmark.id.desc())
+    else:
+        query = query.order_by(sort_column.asc(), models.Bookmark.id.asc())
 
     return query.offset(offset).limit(limit).all()
 

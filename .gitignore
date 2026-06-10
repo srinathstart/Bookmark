@@ -5,3 +5,4 @@ bookmarks.db
 test.db
 *.env
 test_openai.py
+INTERVIEW_PREP.md
