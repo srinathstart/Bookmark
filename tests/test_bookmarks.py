@@ -20,6 +20,32 @@ def test_create_bookmark(client):
     assert response.json()["url"] == "https://example.com/"
 
 
+def test_duplicate_url_rejected_for_same_user(client):
+    token = get_auth_token(client)
+    headers = auth_headers(token)
+
+    first = client.post("/bookmarks/", json={"url": "https://example.com", "title": "First"},
+                        headers=headers)
+    assert first.status_code == 201
+
+    second = client.post("/bookmarks/", json={"url": "https://example.com", "title": "Dup"},
+                         headers=headers)
+    assert second.status_code == 400
+    assert second.json()["detail"] == "Bookmark already exists"
+
+
+def test_same_url_allowed_for_different_users(client):
+    token_a = get_auth_token(client, email="a@example.com")
+    token_b = get_auth_token(client, email="b@example.com")
+
+    a = client.post("/bookmarks/", json={"url": "https://example.com", "title": "A"},
+                    headers=auth_headers(token_a))
+    b = client.post("/bookmarks/", json={"url": "https://example.com", "title": "B"},
+                    headers=auth_headers(token_b))
+    assert a.status_code == 201
+    assert b.status_code == 201
+
+
 def test_create_bookmark_without_login(client):
     response = client.post("/bookmarks/", json={
         "url": "https://example.com",
@@ -83,6 +109,39 @@ def test_update_bookmark(client):
     }, headers=headers)
     assert response.status_code == 200
     assert response.json()["title"] == "New Title"
+
+
+def test_update_to_duplicate_url_rejected(client):
+    token = get_auth_token(client)
+    headers = auth_headers(token)
+
+    client.post("/bookmarks/", json={"url": "https://example.com", "title": "A"}, headers=headers)
+    b = client.post("/bookmarks/", json={"url": "https://python.org", "title": "B"},
+                    headers=headers).json()
+
+    # Try to point B at A's URL -> should be rejected
+    response = client.put(f"/bookmarks/{b['id']}", json={
+        "url": "https://example.com",
+        "title": "B"
+    }, headers=headers)
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Bookmark already exists"
+
+
+def test_update_keeping_same_url_is_allowed(client):
+    token = get_auth_token(client)
+    headers = auth_headers(token)
+
+    created = client.post("/bookmarks/", json={"url": "https://example.com", "title": "Old"},
+                          headers=headers).json()
+
+    # Same URL, new title -> must NOT be treated as a duplicate of itself
+    response = client.put(f"/bookmarks/{created['id']}", json={
+        "url": "https://example.com",
+        "title": "New"
+    }, headers=headers)
+    assert response.status_code == 200
+    assert response.json()["title"] == "New"
 
 
 def test_delete_bookmark(client):

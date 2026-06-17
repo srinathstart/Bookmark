@@ -48,6 +48,23 @@ def create_bookmark(
 ):
     url_str = str(bookmark.url)
 
+    # Reject if this user has already saved the same URL. The check is
+    # scoped to current_user, so two different users can still bookmark
+    # the same page.
+    existing = (
+        db.query(models.Bookmark)
+        .filter(
+            models.Bookmark.user_id == current_user.id,
+            models.Bookmark.url == url_str,
+        )
+        .first()
+    )
+    if existing:
+        raise HTTPException(
+            status_code=400,
+            detail="Bookmark already exists"
+        )
+
     new_bookmark = models.Bookmark(
         url=url_str,
         title=bookmark.title,
@@ -150,6 +167,24 @@ def update_bookmark(
     new_url = str(updated.url)
     url_changed = new_url != bookmark.url
     if url_changed:
+        # Only check for duplicates when the URL actually changed. Exclude
+        # this bookmark itself (id != bookmark_id) so editing the title of
+        # a row without touching its URL never collides with itself.
+        clash = (
+            db.query(models.Bookmark)
+            .filter(
+                models.Bookmark.user_id == current_user.id,
+                models.Bookmark.url == new_url,
+                models.Bookmark.id != bookmark_id,
+            )
+            .first()
+        )
+        if clash:
+            raise HTTPException(
+                status_code=400,
+                detail="Bookmark already exists"
+            )
+
         # Old summary is stale once the URL changes; clear it and
         # regenerate off the request path.
         bookmark.summary = None
