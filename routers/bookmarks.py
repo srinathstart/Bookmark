@@ -19,8 +19,6 @@ def build_summary(bookmark_id: int, url: str) -> None:
     """
     page_text = fetch_page_text(url)
     summary = generate_summary(page_text) if page_text else None
-    if summary is None:
-        return
 
     db = SessionLocal()
     try:
@@ -33,6 +31,7 @@ def build_summary(bookmark_id: int, url: str) -> None:
         # while we were working; only write if it still points at this URL.
         if bookmark is not None and bookmark.url == url:
             bookmark.summary = summary
+            bookmark.summary_status = "completed" if summary else "failed"
             db.commit()
     finally:
         db.close()
@@ -70,6 +69,7 @@ def create_bookmark(
         title=bookmark.title,
         description=bookmark.description,
         summary=None,
+        summary_status="pending",
         user_id=current_user.id
     )
 
@@ -188,6 +188,7 @@ def update_bookmark(
         # Old summary is stale once the URL changes; clear it and
         # regenerate off the request path.
         bookmark.summary = None
+        bookmark.summary_status = "pending"
 
     bookmark.url = new_url
     bookmark.title = updated.title
@@ -199,6 +200,34 @@ def update_bookmark(
     if url_changed:
         background_tasks.add_task(build_summary, bookmark.id, new_url)
 
+    return bookmark
+
+
+@router.post("/{bookmark_id}/summary/retry", response_model=Bookmark)
+def retry_bookmark_summary(
+    bookmark_id: int,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    bookmark = (
+        db.query(models.Bookmark)
+        .filter(
+            models.Bookmark.id == bookmark_id,
+            models.Bookmark.user_id == current_user.id
+        )
+        .first()
+    )
+
+    if bookmark is None:
+        raise HTTPException(status_code=404, detail="Bookmark not found")
+
+    bookmark.summary = None
+    bookmark.summary_status = "pending"
+    db.commit()
+    db.refresh(bookmark)
+
+    background_tasks.add_task(build_summary, bookmark.id, bookmark.url)
     return bookmark
 
 

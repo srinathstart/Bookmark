@@ -31,10 +31,17 @@ class Bookmark(Base):
         String(500),
         nullable=True
     )
-    
+
     summary = Column(
         String(1000), 
         nullable=True
+    )
+
+    summary_status = Column(
+        String(20),
+        nullable=False,
+        default="pending",
+        server_default="pending"
     )
 
     user_id = Column(
@@ -62,5 +69,3 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String(255), unique=True, index=True, nullable=False)
     hashed_password = Column(String(255), nullable=False)
-
-    

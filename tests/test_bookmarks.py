@@ -18,6 +18,7 @@ def test_create_bookmark(client):
     assert response.status_code == 201
     assert response.json()["title"] == "Example Site"
     assert response.json()["url"] == "https://example.com/"
+    assert response.json()["summary_status"] == "pending"
 
 
 def test_duplicate_url_rejected_for_same_user(client):
@@ -215,3 +216,48 @@ def test_bookmarks_invalid_sort_field_rejected(client):
 
     response = client.get("/bookmarks/?sort_by=password", headers=headers)
     assert response.status_code == 422
+
+
+def test_retry_summary_sets_pending_and_schedules_task(client, monkeypatch):
+    token = get_auth_token(client)
+    headers = auth_headers(token)
+    created = client.post(
+        "/bookmarks/",
+        json={"url": "https://example.com", "title": "Retry me"},
+        headers=headers,
+    ).json()
+
+    scheduled = []
+
+    def record_summary_task(bookmark_id, url):
+        scheduled.append((bookmark_id, url))
+
+    from routers import bookmarks as bookmarks_router
+
+    monkeypatch.setattr(bookmarks_router, "build_summary", record_summary_task)
+    response = client.post(
+        f"/bookmarks/{created['id']}/summary/retry",
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["summary"] is None
+    assert response.json()["summary_status"] == "pending"
+    assert scheduled == [(created["id"], "https://example.com/")]
+
+
+def test_user_cannot_retry_another_users_summary(client):
+    token_a = get_auth_token(client, email="retry-a@example.com")
+    token_b = get_auth_token(client, email="retry-b@example.com")
+    created = client.post(
+        "/bookmarks/",
+        json={"url": "https://example.com", "title": "Private"},
+        headers=auth_headers(token_a),
+    ).json()
+
+    response = client.post(
+        f"/bookmarks/{created['id']}/summary/retry",
+        headers=auth_headers(token_b),
+    )
+
+    assert response.status_code == 404

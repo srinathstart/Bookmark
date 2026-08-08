@@ -1,4 +1,6 @@
 from datetime import datetime
+from typing import Literal
+
 from pydantic import BaseModel, HttpUrl, EmailStr, field_validator
 
 class BookmarkCreate(BaseModel):
@@ -13,6 +15,7 @@ class Bookmark(BaseModel):
     title: str
     description: str | None
     summary: str | None = None
+    summary_status: Literal["pending", "completed", "failed"]
     created_at: datetime
     updated_at: datetime
 

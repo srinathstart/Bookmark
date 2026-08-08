@@ -17,7 +17,7 @@ A REST API for managing bookmarks with JWT authentication and AI-powered page su
 
 - User registration and login with JWT auth
 - Full bookmark CRUD with pagination and search
-- AI-generated summaries by fetching and parsing page content
+- AI-generated summaries with pending/completed/failed status and manual retry
 - Rate limiting on auth endpoints
 - Strict user data isolation
 
@@ -63,6 +63,11 @@ OLLAMA_MODEL=llama3.2
 | GET | `/bookmarks/{id}` | Yes | Get a single bookmark |
 | PUT | `/bookmarks/{id}` | Yes | Update a bookmark |
 | DELETE | `/bookmarks/{id}` | Yes | Delete a bookmark |
+| POST | `/bookmarks/{id}/summary/retry` | Yes | Retry summary generation |
+
+Bookmark responses include `summary_status`, which is `pending` while work is
+scheduled, `completed` after a summary is saved, or `failed` when page fetching
+or model generation does not succeed.
 
 ## Run Tests
 
