@@ -22,6 +22,14 @@ class Bookmark(BaseModel):
 
     model_config = {"from_attributes": True}
 
+
+class BookmarkPage(BaseModel):
+    items: list[Bookmark]
+    total: int
+    limit: int
+    offset: int
+    has_more: bool
+
 class UserCreate(BaseModel):
     email: EmailStr
     password: str

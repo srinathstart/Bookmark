@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException, Depends, Query, BackgroundTasks
 from sqlalchemy.orm import Session
 from database import get_db, SessionLocal
 import models
-from schemas import BookmarkCreate, Bookmark
+from schemas import BookmarkCreate, Bookmark, BookmarkPage
 from auth import get_current_user
 from services.ai import fetch_page_text, generate_summary
 
@@ -92,7 +92,7 @@ SORT_COLUMNS = {
 }
 
 
-@router.get("/", response_model=list[Bookmark])
+@router.get("/", response_model=BookmarkPage)
 def get_bookmarks(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
@@ -112,13 +112,25 @@ def get_bookmarks(
             models.Bookmark.title.ilike(f"%{search}%")
         )
 
+    # Count after ownership and search filters, but before pagination, so the
+    # client knows the size of the result set it is currently browsing.
+    total = query.count()
+
     sort_column = SORT_COLUMNS[sort_by]
     if order == "desc":
         query = query.order_by(sort_column.desc(), models.Bookmark.id.desc())
     else:
         query = query.order_by(sort_column.asc(), models.Bookmark.id.asc())
 
-    return query.offset(offset).limit(limit).all()
+    items = query.offset(offset).limit(limit).all()
+
+    return {
+        "items": items,
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+        "has_more": offset + len(items) < total,
+    }
 
 
 # ✅ READ ONE

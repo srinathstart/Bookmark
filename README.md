@@ -69,6 +69,18 @@ Bookmark responses include `summary_status`, which is `pending` while work is
 scheduled, `completed` after a summary is saved, or `failed` when page fetching
 or model generation does not succeed.
 
+The bookmark list endpoint returns pagination metadata:
+
+```json
+{
+  "items": [],
+  "total": 0,
+  "limit": 20,
+  "offset": 0,
+  "has_more": false
+}
+```
+
 ## Run Tests
 
 ```bash

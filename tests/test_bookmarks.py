@@ -64,7 +64,12 @@ def test_get_all_bookmarks(client):
 
     response = client.get("/bookmarks/", headers=headers)
     assert response.status_code == 200
-    assert len(response.json()) == 2
+    data = response.json()
+    assert len(data["items"]) == 2
+    assert data["total"] == 2
+    assert data["limit"] == 20
+    assert data["offset"] == 0
+    assert data["has_more"] is False
 
 
 def test_user_cannot_see_other_users_bookmarks(client):
@@ -76,7 +81,8 @@ def test_user_cannot_see_other_users_bookmarks(client):
 
     response = client.get("/bookmarks/", headers=auth_headers(token_b))
     assert response.status_code == 200
-    assert len(response.json()) == 0
+    assert response.json()["items"] == []
+    assert response.json()["total"] == 0
 
 
 def test_get_single_bookmark(client):
@@ -168,8 +174,10 @@ def test_search_bookmarks(client):
 
     response = client.get("/bookmarks/?search=python", headers=headers)
     assert response.status_code == 200
-    assert len(response.json()) == 1
-    assert response.json()[0]["title"] == "Python Docs"
+    data = response.json()
+    assert len(data["items"]) == 1
+    assert data["items"][0]["title"] == "Python Docs"
+    assert data["total"] == 1
 
 
 def test_bookmark_has_timestamps(client):
@@ -193,7 +201,7 @@ def test_bookmarks_default_sort_is_newest_first(client):
                          headers=headers).json()
 
     response = client.get("/bookmarks/", headers=headers)
-    ids = [b["id"] for b in response.json()]
+    ids = [b["id"] for b in response.json()["items"]]
     # Newest (second) should come before oldest (first)
     assert ids.index(second["id"]) < ids.index(first["id"])
 
@@ -206,8 +214,49 @@ def test_bookmarks_sort_by_title_ascending(client):
     client.post("/bookmarks/", json={"url": "https://b.com", "title": "Apple"}, headers=headers)
 
     response = client.get("/bookmarks/?sort_by=title&order=asc", headers=headers)
-    titles = [b["title"] for b in response.json()]
+    titles = [b["title"] for b in response.json()["items"]]
     assert titles == ["Apple", "Banana"]
+
+
+def test_bookmark_pagination_metadata_and_second_page(client):
+    token = get_auth_token(client)
+    headers = auth_headers(token)
+
+    for number in range(1, 6):
+        client.post(
+            "/bookmarks/",
+            json={"url": f"https://example{number}.com", "title": f"Bookmark {number}"},
+            headers=headers,
+        )
+
+    response = client.get("/bookmarks/?limit=2&offset=2", headers=headers)
+    data = response.json()
+
+    assert response.status_code == 200
+    assert len(data["items"]) == 2
+    assert data["total"] == 5
+    assert data["limit"] == 2
+    assert data["offset"] == 2
+    assert data["has_more"] is True
+
+
+def test_bookmark_pagination_last_page_has_no_more(client):
+    token = get_auth_token(client)
+    headers = auth_headers(token)
+
+    for number in range(1, 4):
+        client.post(
+            "/bookmarks/",
+            json={"url": f"https://page{number}.com", "title": f"Page {number}"},
+            headers=headers,
+        )
+
+    response = client.get("/bookmarks/?limit=2&offset=2", headers=headers)
+    data = response.json()
+
+    assert len(data["items"]) == 1
+    assert data["total"] == 3
+    assert data["has_more"] is False
 
 
 def test_bookmarks_invalid_sort_field_rejected(client):
