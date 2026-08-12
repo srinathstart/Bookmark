@@ -40,6 +40,18 @@
   border: 1px solid #9eaaa4;
 }
 
+.session-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.signed-in-label {
+  color: #2c6a55;
+  font-size: 0.88rem;
+  font-weight: 750;
+}
+
 .hero-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
@@ -179,6 +191,18 @@
   background: #edf4ed;
   border-radius: 10px;
   line-height: 1.45;
+}
+
+.switch-form-button {
+  width: 100%;
+  margin-top: 16px;
+  padding: 8px;
+  color: #2c6a55;
+  background: transparent;
+  border: 0;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .features {

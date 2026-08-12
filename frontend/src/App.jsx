@@ -4,11 +4,24 @@ import './App.css'
 const API_URL = 'http://127.0.0.1:8000'
 
 function App() {
-  const [showRegister, setShowRegister] = useState(false)
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [activeForm, setActiveForm] = useState(null)
+  const [registerEmail, setRegisterEmail] = useState('')
+  const [registerPassword, setRegisterPassword] = useState('')
+  const [loginEmail, setLoginEmail] = useState('')
+  const [loginPassword, setLoginPassword] = useState('')
+  const [token, setToken] = useState(() => localStorage.getItem('accessToken'))
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [message, setMessage] = useState('')
+
+  function openForm(formName) {
+    setActiveForm(formName)
+    setMessage('')
+  }
+
+  function closeForm() {
+    setActiveForm(null)
+    setMessage('')
+  }
 
   async function handleRegister(event) {
     event.preventDefault()
@@ -21,7 +34,10 @@ function App() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({
+          email: registerEmail,
+          password: registerPassword,
+        }),
       })
 
       const data = await response.json()
@@ -34,9 +50,11 @@ function App() {
         throw new Error(errorMessage)
       }
 
-      setMessage(`Account created for ${data.email}. You can now log in.`)
-      setEmail('')
-      setPassword('')
+      setLoginEmail(data.email)
+      setRegisterEmail('')
+      setRegisterPassword('')
+      setActiveForm('login')
+      setMessage(`Account created for ${data.email}. Log in to continue.`)
     } catch (error) {
       if (error instanceof TypeError) {
         setMessage('Cannot reach the API. Make sure FastAPI is running.')
@@ -48,15 +66,82 @@ function App() {
     }
   }
 
+  async function handleLogin(event) {
+    event.preventDefault()
+    setIsSubmitting(true)
+    setMessage('')
+
+    const formData = new URLSearchParams()
+    formData.append('username', loginEmail)
+    formData.append('password', loginPassword)
+
+    try {
+      const response = await fetch(`${API_URL}/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData,
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(
+          typeof data.detail === 'string' ? data.detail : 'Login failed.',
+        )
+      }
+
+      localStorage.setItem('accessToken', data.access_token)
+      setToken(data.access_token)
+      setLoginPassword('')
+      setActiveForm(null)
+      setMessage('')
+    } catch (error) {
+      if (error instanceof TypeError) {
+        setMessage('Cannot reach the API. Make sure FastAPI is running.')
+      } else {
+        setMessage(error.message)
+      }
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  function handleLogout() {
+    localStorage.removeItem('accessToken')
+    setToken(null)
+    setLoginEmail('')
+    setLoginPassword('')
+    setMessage('')
+  }
+
   return (
     <main className="app-shell">
       <header className="site-header">
         <a className="brand" href="/" aria-label="Bookmark Manager home">
           Bookmark Manager
         </a>
-        <button className="login-button" type="button">
-          Log in
-        </button>
+        {token ? (
+          <div className="session-actions">
+            <span className="signed-in-label">Signed in</span>
+            <button
+              className="login-button"
+              type="button"
+              onClick={handleLogout}
+            >
+              Log out
+            </button>
+          </div>
+        ) : (
+          <button
+            className="login-button"
+            type="button"
+            onClick={() => openForm('login')}
+          >
+            Log in
+          </button>
+        )}
       </header>
 
       <div className="hero-layout">
@@ -73,8 +158,7 @@ function App() {
               className="primary-button"
               type="button"
               onClick={() => {
-                setShowRegister(true)
-                setMessage('')
+                openForm('register')
               }}
             >
               Create an account
@@ -85,13 +169,13 @@ function App() {
           </div>
         </section>
 
-        {showRegister && (
+        {activeForm === 'register' && (
           <section className="register-panel" aria-labelledby="register-title">
             <button
               className="close-button"
               type="button"
               aria-label="Close registration form"
-              onClick={() => setShowRegister(false)}
+              onClick={closeForm}
             >
               ×
             </button>
@@ -106,8 +190,8 @@ function App() {
               <input
                 id="register-email"
                 type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
+                value={registerEmail}
+                onChange={(event) => setRegisterEmail(event.target.value)}
                 placeholder="you@example.com"
                 autoComplete="email"
                 required
@@ -117,8 +201,8 @@ function App() {
               <input
                 id="register-password"
                 type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
+                value={registerPassword}
+                onChange={(event) => setRegisterPassword(event.target.value)}
                 placeholder="At least 8 characters"
                 autoComplete="new-password"
                 minLength={8}
@@ -139,6 +223,70 @@ function App() {
                 {message}
               </p>
             )}
+          </section>
+        )}
+
+        {activeForm === 'login' && (
+          <section className="register-panel" aria-labelledby="login-title">
+            <button
+              className="close-button"
+              type="button"
+              aria-label="Close login form"
+              onClick={closeForm}
+            >
+              ×
+            </button>
+            <p className="form-label">Welcome back</p>
+            <h2 id="login-title">Log in to your account</h2>
+            <p className="form-description">
+              Enter the email and password you used when registering.
+            </p>
+
+            <form className="register-form" onSubmit={handleLogin}>
+              <label htmlFor="login-email">Email address</label>
+              <input
+                id="login-email"
+                type="email"
+                value={loginEmail}
+                onChange={(event) => setLoginEmail(event.target.value)}
+                placeholder="you@example.com"
+                autoComplete="email"
+                required
+              />
+
+              <label htmlFor="login-password">Password</label>
+              <input
+                id="login-password"
+                type="password"
+                value={loginPassword}
+                onChange={(event) => setLoginPassword(event.target.value)}
+                placeholder="Your password"
+                autoComplete="current-password"
+                required
+              />
+
+              <button
+                className="primary-button submit-button"
+                type="submit"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Logging in…' : 'Log in'}
+              </button>
+            </form>
+
+            {message && (
+              <p className="form-message" role="status">
+                {message}
+              </p>
+            )}
+
+            <button
+              className="switch-form-button"
+              type="button"
+              onClick={() => openForm('register')}
+            >
+              Need an account? Register
+            </button>
           </section>
         )}
       </div>
