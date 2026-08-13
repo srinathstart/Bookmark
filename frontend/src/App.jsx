@@ -18,6 +18,12 @@ function App() {
   const [hasMore, setHasMore] = useState(false)
   const [isLoadingBookmarks, setIsLoadingBookmarks] = useState(false)
   const [bookmarkError, setBookmarkError] = useState('')
+  const [bookmarkUrl, setBookmarkUrl] = useState('')
+  const [bookmarkTitle, setBookmarkTitle] = useState('')
+  const [bookmarkDescription, setBookmarkDescription] = useState('')
+  const [isCreatingBookmark, setIsCreatingBookmark] = useState(false)
+  const [createBookmarkError, setCreateBookmarkError] = useState('')
+  const [retryingBookmarkId, setRetryingBookmarkId] = useState(null)
 
   useEffect(() => {
     if (!token) {
@@ -80,6 +86,75 @@ function App() {
     return () => controller.abort()
   }, [token])
 
+  useEffect(() => {
+    if (!token) {
+      return
+    }
+
+    const pendingBookmarks = bookmarks.filter(
+      (bookmark) => bookmark.summary_status === 'pending',
+    )
+
+    if (pendingBookmarks.length === 0) {
+      return
+    }
+
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        const responses = await Promise.all(
+          pendingBookmarks.map((bookmark) =>
+            fetch(`${API_URL}/bookmarks/${bookmark.id}`, {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+              signal: controller.signal,
+            }),
+          ),
+        )
+
+        if (responses.some((response) => response.status === 401)) {
+          localStorage.removeItem('accessToken')
+          setBookmarks([])
+          setTotalBookmarks(0)
+          setHasMore(false)
+          setToken(null)
+          return
+        }
+
+        const updatedBookmarks = await Promise.all(
+          responses.map(async (response) => {
+            if (!response.ok) {
+              return null
+            }
+            return response.json()
+          }),
+        )
+
+        const updatesById = new Map(
+          updatedBookmarks
+            .filter((bookmark) => bookmark !== null)
+            .map((bookmark) => [bookmark.id, bookmark]),
+        )
+
+        setBookmarks((currentBookmarks) =>
+          currentBookmarks.map(
+            (bookmark) => updatesById.get(bookmark.id) ?? bookmark,
+          ),
+        )
+      } catch (error) {
+        if (error.name !== 'AbortError') {
+          setBookmarkError('Could not refresh summary status.')
+        }
+      }
+    }, 2000)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+      controller.abort()
+    }
+  }, [bookmarks, token])
+
   function openForm(formName) {
     setActiveForm(formName)
     setMessage('')
@@ -88,6 +163,7 @@ function App() {
   function closeForm() {
     setActiveForm(null)
     setMessage('')
+    setCreateBookmarkError('')
   }
 
   async function handleRegister(event) {
@@ -185,6 +261,104 @@ function App() {
     setTotalBookmarks(0)
     setHasMore(false)
     setBookmarkError('')
+    setActiveForm(null)
+    setCreateBookmarkError('')
+  }
+
+  async function handleCreateBookmark(event) {
+    event.preventDefault()
+    setIsCreatingBookmark(true)
+    setCreateBookmarkError('')
+
+    try {
+      const response = await fetch(`${API_URL}/bookmarks/`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          url: bookmarkUrl,
+          title: bookmarkTitle,
+          description: bookmarkDescription || null,
+        }),
+      })
+
+      if (response.status === 401) {
+        handleLogout()
+        return
+      }
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(
+          typeof data.detail === 'string'
+            ? data.detail
+            : 'Please check the bookmark details.',
+        )
+      }
+
+      const newTotal = totalBookmarks + 1
+      const newDisplayedCount = bookmarks.length + 1
+      setBookmarks((currentBookmarks) => [data, ...currentBookmarks])
+      setTotalBookmarks(newTotal)
+      setHasMore(newDisplayedCount < newTotal)
+      setBookmarkUrl('')
+      setBookmarkTitle('')
+      setBookmarkDescription('')
+      setActiveForm(null)
+    } catch (error) {
+      setCreateBookmarkError(
+        error instanceof TypeError
+          ? 'Cannot reach the API. Make sure FastAPI is running.'
+          : error.message,
+      )
+    } finally {
+      setIsCreatingBookmark(false)
+    }
+  }
+
+  async function handleRetrySummary(bookmarkId) {
+    setRetryingBookmarkId(bookmarkId)
+    setBookmarkError('')
+
+    try {
+      const response = await fetch(
+        `${API_URL}/bookmarks/${bookmarkId}/summary/retry`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      )
+
+      if (response.status === 401) {
+        handleLogout()
+        return
+      }
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error('Could not retry this summary.')
+      }
+
+      setBookmarks((currentBookmarks) =>
+        currentBookmarks.map((bookmark) =>
+          bookmark.id === data.id ? data : bookmark,
+        ),
+      )
+    } catch (error) {
+      setBookmarkError(
+        error instanceof TypeError
+          ? 'Cannot reach the API. Make sure FastAPI is running.'
+          : error.message,
+      )
+    } finally {
+      setRetryingBookmarkId(null)
+    }
   }
 
   async function handleLoadMore() {
@@ -264,10 +438,99 @@ function App() {
               <p className="eyebrow">Your collection</p>
               <h1 id="dashboard-title">Saved bookmarks</h1>
             </div>
-            <p className="bookmark-count">
-              {totalBookmarks} {totalBookmarks === 1 ? 'bookmark' : 'bookmarks'}
-            </p>
+            <div className="dashboard-actions">
+              <p className="bookmark-count">
+                {totalBookmarks}{' '}
+                {totalBookmarks === 1 ? 'bookmark' : 'bookmarks'}
+              </p>
+              <button
+                className="primary-button"
+                type="button"
+                onClick={() => {
+                  setActiveForm('bookmark')
+                  setCreateBookmarkError('')
+                }}
+              >
+                New bookmark
+              </button>
+            </div>
           </div>
+
+          {activeForm === 'bookmark' && (
+            <section
+              className="create-bookmark-panel"
+              aria-labelledby="create-bookmark-title"
+            >
+              <div className="create-panel-heading">
+                <div>
+                  <p className="form-label">Add to your collection</p>
+                  <h2 id="create-bookmark-title">Create a bookmark</h2>
+                </div>
+                <button
+                  className="close-button inline-close-button"
+                  type="button"
+                  aria-label="Close bookmark form"
+                  onClick={closeForm}
+                >
+                  ×
+                </button>
+              </div>
+
+              <form
+                className="register-form bookmark-form"
+                onSubmit={handleCreateBookmark}
+              >
+                <label htmlFor="bookmark-url">Page URL</label>
+                <input
+                  id="bookmark-url"
+                  type="url"
+                  value={bookmarkUrl}
+                  onChange={(event) => setBookmarkUrl(event.target.value)}
+                  placeholder="https://example.com"
+                  required
+                />
+
+                <label htmlFor="bookmark-title">Title</label>
+                <input
+                  id="bookmark-title"
+                  type="text"
+                  value={bookmarkTitle}
+                  onChange={(event) => setBookmarkTitle(event.target.value)}
+                  placeholder="A useful page"
+                  maxLength={255}
+                  required
+                />
+
+                <label htmlFor="bookmark-description">
+                  Description <span className="optional-label">Optional</span>
+                </label>
+                <textarea
+                  id="bookmark-description"
+                  value={bookmarkDescription}
+                  onChange={(event) =>
+                    setBookmarkDescription(event.target.value)
+                  }
+                  placeholder="Why are you saving this page?"
+                  maxLength={500}
+                  rows={4}
+                />
+
+                <button
+                  className="primary-button submit-button"
+                  type="submit"
+                  disabled={isCreatingBookmark}
+                >
+                  {isCreatingBookmark ? 'Saving bookmark…' : 'Save bookmark'}
+                </button>
+              </form>
+
+              {createBookmarkError && (
+                <p className="form-message error-message" role="alert">
+                  {createBookmarkError}
+                </p>
+              )}
+            </section>
+          )}
 
           {bookmarkError && (
             <p className="dashboard-message error-message" role="alert">
@@ -284,8 +547,8 @@ function App() {
               <p className="form-label">Nothing saved yet</p>
               <h2>Your bookmark collection is empty.</h2>
               <p>
-                We’ll add the create-bookmark form in the next step. Your saved
-                pages will appear here.
+                Select New bookmark to save your first useful page. It will
+                appear here after the API accepts it.
               </p>
             </div>
           )}
@@ -309,9 +572,22 @@ function App() {
                     <p className="bookmark-summary">{bookmark.summary}</p>
                   )}
 
-                  <a href={bookmark.url} target="_blank" rel="noreferrer">
-                    Visit page
-                  </a>
+                  <div className="bookmark-card-actions">
+                    <a href={bookmark.url} target="_blank" rel="noreferrer">
+                      Visit page
+                    </a>
+                    {bookmark.summary_status === 'failed' && (
+                      <button
+                        type="button"
+                        onClick={() => handleRetrySummary(bookmark.id)}
+                        disabled={retryingBookmarkId === bookmark.id}
+                      >
+                        {retryingBookmarkId === bookmark.id
+                          ? 'Retrying…'
+                          : 'Retry summary'}
+                      </button>
+                    )}
+                  </div>
                 </article>
               ))}
             </div>

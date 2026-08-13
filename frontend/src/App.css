@@ -79,6 +79,74 @@
   font-weight: 700;
 }
 
+.dashboard-actions {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.create-bookmark-panel {
+  margin-top: 28px;
+  padding: 28px;
+  background: #ffffff;
+  border: 1px solid #dfe4dc;
+  border-radius: 18px;
+}
+
+.create-panel-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.create-panel-heading h2 {
+  margin: 0;
+  color: #17352b;
+  font-size: 1.6rem;
+}
+
+.inline-close-button {
+  position: static;
+  flex: 0 0 auto;
+}
+
+.bookmark-form {
+  grid-template-columns: 1fr 1fr;
+  column-gap: 18px;
+  margin-top: 20px;
+}
+
+.bookmark-form label:first-of-type,
+.bookmark-form input:first-of-type,
+.bookmark-form label:last-of-type,
+.bookmark-form textarea,
+.bookmark-form .submit-button {
+  grid-column: 1 / -1;
+}
+
+.register-form textarea {
+  width: 100%;
+  padding: 13px 14px;
+  color: #17352b;
+  background: #f8faf6;
+  border: 1px solid #cbd4ce;
+  border-radius: 10px;
+  font: inherit;
+  resize: vertical;
+}
+
+.register-form textarea:focus {
+  border-color: #2c6a55;
+  outline: 3px solid rgb(114 168 146 / 25%);
+}
+
+.optional-label {
+  color: #84938d;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
 .dashboard-message,
 .empty-state {
   margin-top: 28px;
@@ -182,16 +250,40 @@
   color: #3f544c;
 }
 
-.bookmark-card a {
-  align-self: flex-start;
+.bookmark-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
   margin-top: auto;
+  padding-top: 10px;
+}
+
+.bookmark-card-actions a {
   color: #2c6a55;
   font-weight: 750;
   text-decoration: none;
 }
 
-.bookmark-card a:hover {
+.bookmark-card-actions a:hover {
   text-decoration: underline;
+}
+
+.bookmark-card-actions button {
+  padding: 8px 12px;
+  color: #8b2f2f;
+  background: #fff3f1;
+  border: 1px solid #e6c4be;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.bookmark-card-actions button:disabled {
+  cursor: wait;
+  opacity: 0.65;
 }
 
 .load-more-row {
@@ -419,6 +511,20 @@ a:focus-visible {
   .dashboard-heading {
     align-items: start;
     flex-direction: column;
+  }
+
+  .dashboard-actions {
+    width: 100%;
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .bookmark-form {
+    grid-template-columns: 1fr;
+  }
+
+  .bookmark-form > * {
+    grid-column: 1;
   }
 
   .bookmark-grid {
