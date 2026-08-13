@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import './App.css'
 
 const API_URL = 'http://127.0.0.1:8000'
+const PAGE_SIZE = 6
 
 function App() {
   const [activeForm, setActiveForm] = useState(null)
@@ -12,6 +13,72 @@ function App() {
   const [token, setToken] = useState(() => localStorage.getItem('accessToken'))
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [message, setMessage] = useState('')
+  const [bookmarks, setBookmarks] = useState([])
+  const [totalBookmarks, setTotalBookmarks] = useState(0)
+  const [hasMore, setHasMore] = useState(false)
+  const [isLoadingBookmarks, setIsLoadingBookmarks] = useState(false)
+  const [bookmarkError, setBookmarkError] = useState('')
+
+  useEffect(() => {
+    if (!token) {
+      return
+    }
+
+    const controller = new AbortController()
+
+    async function loadFirstPage() {
+      setIsLoadingBookmarks(true)
+      setBookmarkError('')
+
+      try {
+        const response = await fetch(
+          `${API_URL}/bookmarks/?limit=${PAGE_SIZE}&offset=0`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            signal: controller.signal,
+          },
+        )
+
+        if (response.status === 401) {
+          localStorage.removeItem('accessToken')
+          setBookmarks([])
+          setTotalBookmarks(0)
+          setHasMore(false)
+          setBookmarkError('')
+          setToken(null)
+          return
+        }
+
+        const data = await response.json()
+
+        if (!response.ok) {
+          throw new Error('Could not load your bookmarks.')
+        }
+
+        setBookmarks(data.items)
+        setTotalBookmarks(data.total)
+        setHasMore(data.has_more)
+      } catch (error) {
+        if (error.name !== 'AbortError') {
+          setBookmarkError(
+            error instanceof TypeError
+              ? 'Cannot reach the API. Make sure FastAPI is running.'
+              : error.message,
+          )
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsLoadingBookmarks(false)
+        }
+      }
+    }
+
+    loadFirstPage()
+
+    return () => controller.abort()
+  }, [token])
 
   function openForm(formName) {
     setActiveForm(formName)
@@ -114,6 +181,52 @@ function App() {
     setLoginEmail('')
     setLoginPassword('')
     setMessage('')
+    setBookmarks([])
+    setTotalBookmarks(0)
+    setHasMore(false)
+    setBookmarkError('')
+  }
+
+  async function handleLoadMore() {
+    setIsLoadingBookmarks(true)
+    setBookmarkError('')
+
+    try {
+      const response = await fetch(
+        `${API_URL}/bookmarks/?limit=${PAGE_SIZE}&offset=${bookmarks.length}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      )
+
+      if (response.status === 401) {
+        handleLogout()
+        return
+      }
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error('Could not load more bookmarks.')
+      }
+
+      setBookmarks((currentBookmarks) => [
+        ...currentBookmarks,
+        ...data.items,
+      ])
+      setTotalBookmarks(data.total)
+      setHasMore(data.has_more)
+    } catch (error) {
+      setBookmarkError(
+        error instanceof TypeError
+          ? 'Cannot reach the API. Make sure FastAPI is running.'
+          : error.message,
+      )
+    } finally {
+      setIsLoadingBookmarks(false)
+    }
   }
 
   return (
@@ -144,7 +257,82 @@ function App() {
         )}
       </header>
 
-      <div className="hero-layout">
+      {token ? (
+        <section className="dashboard" aria-labelledby="dashboard-title">
+          <div className="dashboard-heading">
+            <div>
+              <p className="eyebrow">Your collection</p>
+              <h1 id="dashboard-title">Saved bookmarks</h1>
+            </div>
+            <p className="bookmark-count">
+              {totalBookmarks} {totalBookmarks === 1 ? 'bookmark' : 'bookmarks'}
+            </p>
+          </div>
+
+          {bookmarkError && (
+            <p className="dashboard-message error-message" role="alert">
+              {bookmarkError}
+            </p>
+          )}
+
+          {isLoadingBookmarks && bookmarks.length === 0 && (
+            <p className="dashboard-message">Loading your bookmarks…</p>
+          )}
+
+          {!isLoadingBookmarks && !bookmarkError && bookmarks.length === 0 && (
+            <div className="empty-state">
+              <p className="form-label">Nothing saved yet</p>
+              <h2>Your bookmark collection is empty.</h2>
+              <p>
+                We’ll add the create-bookmark form in the next step. Your saved
+                pages will appear here.
+              </p>
+            </div>
+          )}
+
+          {bookmarks.length > 0 && (
+            <div className="bookmark-grid">
+              {bookmarks.map((bookmark) => (
+                <article className="bookmark-card" key={bookmark.id}>
+                  <div className="bookmark-card-heading">
+                    <span
+                      className={`status-badge status-${bookmark.summary_status}`}
+                    >
+                      {bookmark.summary_status}
+                    </span>
+                    <span className="bookmark-id">#{bookmark.id}</span>
+                  </div>
+
+                  <h2>{bookmark.title}</h2>
+                  {bookmark.description && <p>{bookmark.description}</p>}
+                  {bookmark.summary && (
+                    <p className="bookmark-summary">{bookmark.summary}</p>
+                  )}
+
+                  <a href={bookmark.url} target="_blank" rel="noreferrer">
+                    Visit page
+                  </a>
+                </article>
+              ))}
+            </div>
+          )}
+
+          {hasMore && (
+            <div className="load-more-row">
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={handleLoadMore}
+                disabled={isLoadingBookmarks}
+              >
+                {isLoadingBookmarks ? 'Loading…' : 'Load more'}
+              </button>
+            </div>
+          )}
+        </section>
+      ) : (
+        <>
+          <div className="hero-layout">
         <section className="hero" aria-labelledby="hero-title">
           <p className="eyebrow">Your useful links, organized</p>
           <h1 id="hero-title">Save a page. Find it when you need it.</h1>
@@ -289,31 +477,35 @@ function App() {
             </button>
           </section>
         )}
-      </div>
+          </div>
 
-      <section
-        className="features"
-        id="features"
-        aria-label="Application features"
-      >
-        <article className="feature-card">
-          <span className="feature-number">01</span>
-          <h2>Save bookmarks</h2>
-          <p>Store a URL, title, and description in your personal collection.</p>
-        </article>
+          <section
+            className="features"
+            id="features"
+            aria-label="Application features"
+          >
+            <article className="feature-card">
+              <span className="feature-number">01</span>
+              <h2>Save bookmarks</h2>
+              <p>
+                Store a URL, title, and description in your personal collection.
+              </p>
+            </article>
 
-        <article className="feature-card">
-          <span className="feature-number">02</span>
-          <h2>Search quickly</h2>
-          <p>Find saved pages without scrolling through your entire list.</p>
-        </article>
+            <article className="feature-card">
+              <span className="feature-number">02</span>
+              <h2>Search quickly</h2>
+              <p>Find saved pages without scrolling through your entire list.</p>
+            </article>
 
-        <article className="feature-card">
-          <span className="feature-number">03</span>
-          <h2>Read summaries</h2>
-          <p>Use your local Ollama model to create concise page summaries.</p>
-        </article>
-      </section>
+            <article className="feature-card">
+              <span className="feature-number">03</span>
+              <h2>Read summaries</h2>
+              <p>Use your local Ollama model to create concise page summaries.</p>
+            </article>
+          </section>
+        </>
+      )}
     </main>
   )
 }
