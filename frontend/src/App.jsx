@@ -24,6 +24,8 @@ function App() {
   const [isCreatingBookmark, setIsCreatingBookmark] = useState(false)
   const [createBookmarkError, setCreateBookmarkError] = useState('')
   const [retryingBookmarkId, setRetryingBookmarkId] = useState(null)
+  const [editingBookmarkId, setEditingBookmarkId] = useState(null)
+  const [deletingBookmarkId, setDeletingBookmarkId] = useState(null)
   const [searchInput, setSearchInput] = useState('')
   const [activeSearch, setActiveSearch] = useState('')
 
@@ -171,6 +173,7 @@ function App() {
     setActiveForm(null)
     setMessage('')
     setCreateBookmarkError('')
+    setEditingBookmarkId(null)
     setSearchInput('')
     setActiveSearch('')
   }
@@ -282,16 +285,41 @@ function App() {
     setBookmarkError('')
     setActiveForm(null)
     setCreateBookmarkError('')
+    setEditingBookmarkId(null)
   }
 
-  async function handleCreateBookmark(event) {
+  function openCreateBookmarkForm() {
+    setEditingBookmarkId(null)
+    setBookmarkUrl('')
+    setBookmarkTitle('')
+    setBookmarkDescription('')
+    setCreateBookmarkError('')
+    setActiveForm('bookmark')
+  }
+
+  function openEditBookmarkForm(bookmark) {
+    setEditingBookmarkId(bookmark.id)
+    setBookmarkUrl(bookmark.url)
+    setBookmarkTitle(bookmark.title)
+    setBookmarkDescription(bookmark.description ?? '')
+    setCreateBookmarkError('')
+    setActiveForm('bookmark')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  async function handleSaveBookmark(event) {
     event.preventDefault()
     setIsCreatingBookmark(true)
     setCreateBookmarkError('')
 
     try {
-      const response = await fetch(`${API_URL}/bookmarks/`, {
-        method: 'POST',
+      const isEditing = editingBookmarkId !== null
+      const endpoint = isEditing
+        ? `${API_URL}/bookmarks/${editingBookmarkId}`
+        : `${API_URL}/bookmarks/`
+
+      const response = await fetch(endpoint, {
+        method: isEditing ? 'PUT' : 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -322,7 +350,22 @@ function App() {
         !activeSearch ||
         data.title.toLowerCase().includes(activeSearch.toLowerCase())
 
-      if (matchesCurrentSearch) {
+      if (isEditing) {
+        if (matchesCurrentSearch) {
+          setBookmarks((currentBookmarks) =>
+            currentBookmarks.map((bookmark) =>
+              bookmark.id === data.id ? data : bookmark,
+            ),
+          )
+        } else {
+          const newTotal = Math.max(0, totalBookmarks - 1)
+          setBookmarks((currentBookmarks) =>
+            currentBookmarks.filter((bookmark) => bookmark.id !== data.id),
+          )
+          setTotalBookmarks(newTotal)
+          setHasMore(bookmarks.length - 1 < newTotal)
+        }
+      } else if (matchesCurrentSearch) {
         const newTotal = totalBookmarks + 1
         const newDisplayedCount = bookmarks.length + 1
         setBookmarks((currentBookmarks) => [data, ...currentBookmarks])
@@ -332,6 +375,7 @@ function App() {
       setBookmarkUrl('')
       setBookmarkTitle('')
       setBookmarkDescription('')
+      setEditingBookmarkId(null)
       setActiveForm(null)
     } catch (error) {
       setCreateBookmarkError(
@@ -341,6 +385,56 @@ function App() {
       )
     } finally {
       setIsCreatingBookmark(false)
+    }
+  }
+
+  async function handleDeleteBookmark(bookmark) {
+    const confirmed = window.confirm(
+      `Delete “${bookmark.title}”? This action cannot be undone.`,
+    )
+    if (!confirmed) {
+      return
+    }
+
+    setDeletingBookmarkId(bookmark.id)
+    setBookmarkError('')
+
+    try {
+      const response = await fetch(`${API_URL}/bookmarks/${bookmark.id}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (response.status === 401) {
+        handleLogout()
+        return
+      }
+
+      if (!response.ok) {
+        throw new Error('Could not delete this bookmark.')
+      }
+
+      const newTotal = Math.max(0, totalBookmarks - 1)
+      const newDisplayedCount = Math.max(0, bookmarks.length - 1)
+      setBookmarks((currentBookmarks) =>
+        currentBookmarks.filter((item) => item.id !== bookmark.id),
+      )
+      setTotalBookmarks(newTotal)
+      setHasMore(newDisplayedCount < newTotal)
+
+      if (editingBookmarkId === bookmark.id) {
+        closeForm()
+      }
+    } catch (error) {
+      setBookmarkError(
+        error instanceof TypeError
+          ? 'Cannot reach the API. Make sure FastAPI is running.'
+          : error.message,
+      )
+    } finally {
+      setDeletingBookmarkId(null)
     }
   }
 
@@ -476,10 +570,7 @@ function App() {
               <button
                 className="primary-button"
                 type="button"
-                onClick={() => {
-                  setActiveForm('bookmark')
-                  setCreateBookmarkError('')
-                }}
+                onClick={openCreateBookmarkForm}
               >
                 New bookmark
               </button>
@@ -525,8 +616,16 @@ function App() {
             >
               <div className="create-panel-heading">
                 <div>
-                  <p className="form-label">Add to your collection</p>
-                  <h2 id="create-bookmark-title">Create a bookmark</h2>
+                  <p className="form-label">
+                    {editingBookmarkId === null
+                      ? 'Add to your collection'
+                      : 'Update saved page'}
+                  </p>
+                  <h2 id="create-bookmark-title">
+                    {editingBookmarkId === null
+                      ? 'Create a bookmark'
+                      : 'Edit bookmark'}
+                  </h2>
                 </div>
                 <button
                   className="close-button inline-close-button"
@@ -540,7 +639,7 @@ function App() {
 
               <form
                 className="register-form bookmark-form"
-                onSubmit={handleCreateBookmark}
+                onSubmit={handleSaveBookmark}
               >
                 <label htmlFor="bookmark-url">Page URL</label>
                 <input
@@ -582,7 +681,11 @@ function App() {
                   type="submit"
                   disabled={isCreatingBookmark}
                 >
-                  {isCreatingBookmark ? 'Saving bookmark…' : 'Save bookmark'}
+                  {isCreatingBookmark
+                    ? 'Saving bookmark…'
+                    : editingBookmarkId === null
+                      ? 'Save bookmark'
+                      : 'Save changes'}
                 </button>
               </form>
 
@@ -648,17 +751,36 @@ function App() {
                     <a href={bookmark.url} target="_blank" rel="noreferrer">
                       Visit page
                     </a>
-                    {bookmark.summary_status === 'failed' && (
+                    <div className="card-button-group">
+                      {bookmark.summary_status === 'failed' && (
+                        <button
+                          type="button"
+                          onClick={() => handleRetrySummary(bookmark.id)}
+                          disabled={retryingBookmarkId === bookmark.id}
+                        >
+                          {retryingBookmarkId === bookmark.id
+                            ? 'Retrying…'
+                            : 'Retry summary'}
+                        </button>
+                      )}
                       <button
+                        className="neutral-card-button"
                         type="button"
-                        onClick={() => handleRetrySummary(bookmark.id)}
-                        disabled={retryingBookmarkId === bookmark.id}
+                        onClick={() => openEditBookmarkForm(bookmark)}
                       >
-                        {retryingBookmarkId === bookmark.id
-                          ? 'Retrying…'
-                          : 'Retry summary'}
+                        Edit
                       </button>
-                    )}
+                      <button
+                        className="danger-card-button"
+                        type="button"
+                        onClick={() => handleDeleteBookmark(bookmark)}
+                        disabled={deletingBookmarkId === bookmark.id}
+                      >
+                        {deletingBookmarkId === bookmark.id
+                          ? 'Deleting…'
+                          : 'Delete'}
+                      </button>
+                    </div>
                   </div>
                 </article>
               ))}

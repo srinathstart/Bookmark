@@ -299,6 +299,13 @@
   padding-top: 10px;
 }
 
+.card-button-group {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .bookmark-card-actions a {
   color: #2c6a55;
   font-weight: 750;
@@ -319,6 +326,18 @@
   font-size: 0.82rem;
   font-weight: 750;
   cursor: pointer;
+}
+
+.bookmark-card-actions .neutral-card-button {
+  color: #2c6a55;
+  background: #edf4ed;
+  border-color: #c8d9cf;
+}
+
+.bookmark-card-actions .danger-card-button {
+  color: #8b2f2f;
+  background: transparent;
+  border-color: #e6c4be;
 }
 
 .bookmark-card-actions button:disabled {
@@ -573,6 +592,15 @@ a:focus-visible {
 
   .bookmark-grid {
     grid-template-columns: 1fr;
+  }
+
+  .bookmark-card-actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .card-button-group {
+    justify-content: flex-start;
   }
 
   .features {
