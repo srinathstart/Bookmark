@@ -24,6 +24,8 @@ function App() {
   const [isCreatingBookmark, setIsCreatingBookmark] = useState(false)
   const [createBookmarkError, setCreateBookmarkError] = useState('')
   const [retryingBookmarkId, setRetryingBookmarkId] = useState(null)
+  const [searchInput, setSearchInput] = useState('')
+  const [activeSearch, setActiveSearch] = useState('')
 
   useEffect(() => {
     if (!token) {
@@ -37,15 +39,20 @@ function App() {
       setBookmarkError('')
 
       try {
-        const response = await fetch(
-          `${API_URL}/bookmarks/?limit=${PAGE_SIZE}&offset=0`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-            signal: controller.signal,
+        const query = new URLSearchParams({
+          limit: String(PAGE_SIZE),
+          offset: '0',
+        })
+        if (activeSearch) {
+          query.set('search', activeSearch)
+        }
+
+        const response = await fetch(`${API_URL}/bookmarks/?${query}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
           },
-        )
+          signal: controller.signal,
+        })
 
         if (response.status === 401) {
           localStorage.removeItem('accessToken')
@@ -84,7 +91,7 @@ function App() {
     loadFirstPage()
 
     return () => controller.abort()
-  }, [token])
+  }, [activeSearch, token])
 
   useEffect(() => {
     if (!token) {
@@ -164,6 +171,18 @@ function App() {
     setActiveForm(null)
     setMessage('')
     setCreateBookmarkError('')
+    setSearchInput('')
+    setActiveSearch('')
+  }
+
+  function handleSearch(event) {
+    event.preventDefault()
+    setActiveSearch(searchInput.trim())
+  }
+
+  function handleClearSearch() {
+    setSearchInput('')
+    setActiveSearch('')
   }
 
   async function handleRegister(event) {
@@ -299,11 +318,17 @@ function App() {
         )
       }
 
-      const newTotal = totalBookmarks + 1
-      const newDisplayedCount = bookmarks.length + 1
-      setBookmarks((currentBookmarks) => [data, ...currentBookmarks])
-      setTotalBookmarks(newTotal)
-      setHasMore(newDisplayedCount < newTotal)
+      const matchesCurrentSearch =
+        !activeSearch ||
+        data.title.toLowerCase().includes(activeSearch.toLowerCase())
+
+      if (matchesCurrentSearch) {
+        const newTotal = totalBookmarks + 1
+        const newDisplayedCount = bookmarks.length + 1
+        setBookmarks((currentBookmarks) => [data, ...currentBookmarks])
+        setTotalBookmarks(newTotal)
+        setHasMore(newDisplayedCount < newTotal)
+      }
       setBookmarkUrl('')
       setBookmarkTitle('')
       setBookmarkDescription('')
@@ -366,14 +391,19 @@ function App() {
     setBookmarkError('')
 
     try {
-      const response = await fetch(
-        `${API_URL}/bookmarks/?limit=${PAGE_SIZE}&offset=${bookmarks.length}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+      const query = new URLSearchParams({
+        limit: String(PAGE_SIZE),
+        offset: String(bookmarks.length),
+      })
+      if (activeSearch) {
+        query.set('search', activeSearch)
+      }
+
+      const response = await fetch(`${API_URL}/bookmarks/?${query}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
         },
-      )
+      })
 
       if (response.status === 401) {
         handleLogout()
@@ -455,6 +485,38 @@ function App() {
               </button>
             </div>
           </div>
+
+          <form className="search-form" onSubmit={handleSearch} role="search">
+            <label className="visually-hidden" htmlFor="bookmark-search">
+              Search bookmark titles
+            </label>
+            <input
+              id="bookmark-search"
+              type="search"
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+              placeholder="Search bookmark titles"
+            />
+            <button className="primary-button" type="submit">
+              Search
+            </button>
+            {activeSearch && (
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={handleClearSearch}
+              >
+                Clear
+              </button>
+            )}
+          </form>
+
+          {activeSearch && !isLoadingBookmarks && (
+            <p className="search-summary">
+              {totalBookmarks} {totalBookmarks === 1 ? 'result' : 'results'} for{' '}
+              “{activeSearch}”
+            </p>
+          )}
 
           {activeForm === 'bookmark' && (
             <section
@@ -544,12 +606,22 @@ function App() {
 
           {!isLoadingBookmarks && !bookmarkError && bookmarks.length === 0 && (
             <div className="empty-state">
-              <p className="form-label">Nothing saved yet</p>
-              <h2>Your bookmark collection is empty.</h2>
-              <p>
-                Select New bookmark to save your first useful page. It will
-                appear here after the API accepts it.
-              </p>
+              {activeSearch ? (
+                <>
+                  <p className="form-label">No matches</p>
+                  <h2>No bookmark titles match “{activeSearch}”.</h2>
+                  <p>Try a different search term or clear the current search.</p>
+                </>
+              ) : (
+                <>
+                  <p className="form-label">Nothing saved yet</p>
+                  <h2>Your bookmark collection is empty.</h2>
+                  <p>
+                    Select New bookmark to save your first useful page. It will
+                    appear here after the API accepts it.
+                  </p>
+                </>
+              )}
             </div>
           )}
 
