@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react'
 import './App.css'
+import Dashboard from './components/Dashboard'
+import Header from './components/Header'
+import LandingPage from './components/LandingPage'
 
 const API_URL = 'http://127.0.0.1:8000'
 const PAGE_SIZE = 6
@@ -529,452 +532,62 @@ function App() {
 
   return (
     <main className="app-shell">
-      <header className="site-header">
-        <a className="brand" href="/" aria-label="Bookmark Manager home">
-          Bookmark Manager
-        </a>
-        {token ? (
-          <div className="session-actions">
-            <span className="signed-in-label">Signed in</span>
-            <button
-              className="login-button"
-              type="button"
-              onClick={handleLogout}
-            >
-              Log out
-            </button>
-          </div>
-        ) : (
-          <button
-            className="login-button"
-            type="button"
-            onClick={() => openForm('login')}
-          >
-            Log in
-          </button>
-        )}
-      </header>
+      <Header
+        isAuthenticated={Boolean(token)}
+        onLogin={() => openForm('login')}
+        onLogout={handleLogout}
+      />
 
       {token ? (
-        <section className="dashboard" aria-labelledby="dashboard-title">
-          <div className="dashboard-heading">
-            <div>
-              <p className="eyebrow">Your collection</p>
-              <h1 id="dashboard-title">Saved bookmarks</h1>
-            </div>
-            <div className="dashboard-actions">
-              <p className="bookmark-count">
-                {totalBookmarks}{' '}
-                {totalBookmarks === 1 ? 'bookmark' : 'bookmarks'}
-              </p>
-              <button
-                className="primary-button"
-                type="button"
-                onClick={openCreateBookmarkForm}
-              >
-                New bookmark
-              </button>
-            </div>
-          </div>
-
-          <form className="search-form" onSubmit={handleSearch} role="search">
-            <label className="visually-hidden" htmlFor="bookmark-search">
-              Search bookmark titles
-            </label>
-            <input
-              id="bookmark-search"
-              type="search"
-              value={searchInput}
-              onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="Search bookmark titles"
-            />
-            <button className="primary-button" type="submit">
-              Search
-            </button>
-            {activeSearch && (
-              <button
-                className="secondary-button"
-                type="button"
-                onClick={handleClearSearch}
-              >
-                Clear
-              </button>
-            )}
-          </form>
-
-          {activeSearch && !isLoadingBookmarks && (
-            <p className="search-summary">
-              {totalBookmarks} {totalBookmarks === 1 ? 'result' : 'results'} for{' '}
-              “{activeSearch}”
-            </p>
-          )}
-
-          {activeForm === 'bookmark' && (
-            <section
-              className="create-bookmark-panel"
-              aria-labelledby="create-bookmark-title"
-            >
-              <div className="create-panel-heading">
-                <div>
-                  <p className="form-label">
-                    {editingBookmarkId === null
-                      ? 'Add to your collection'
-                      : 'Update saved page'}
-                  </p>
-                  <h2 id="create-bookmark-title">
-                    {editingBookmarkId === null
-                      ? 'Create a bookmark'
-                      : 'Edit bookmark'}
-                  </h2>
-                </div>
-                <button
-                  className="close-button inline-close-button"
-                  type="button"
-                  aria-label="Close bookmark form"
-                  onClick={closeForm}
-                >
-                  ×
-                </button>
-              </div>
-
-              <form
-                className="register-form bookmark-form"
-                onSubmit={handleSaveBookmark}
-              >
-                <label htmlFor="bookmark-url">Page URL</label>
-                <input
-                  id="bookmark-url"
-                  type="url"
-                  value={bookmarkUrl}
-                  onChange={(event) => setBookmarkUrl(event.target.value)}
-                  placeholder="https://example.com"
-                  required
-                />
-
-                <label htmlFor="bookmark-title">Title</label>
-                <input
-                  id="bookmark-title"
-                  type="text"
-                  value={bookmarkTitle}
-                  onChange={(event) => setBookmarkTitle(event.target.value)}
-                  placeholder="A useful page"
-                  maxLength={255}
-                  required
-                />
-
-                <label htmlFor="bookmark-description">
-                  Description <span className="optional-label">Optional</span>
-                </label>
-                <textarea
-                  id="bookmark-description"
-                  value={bookmarkDescription}
-                  onChange={(event) =>
-                    setBookmarkDescription(event.target.value)
-                  }
-                  placeholder="Why are you saving this page?"
-                  maxLength={500}
-                  rows={4}
-                />
-
-                <button
-                  className="primary-button submit-button"
-                  type="submit"
-                  disabled={isCreatingBookmark}
-                >
-                  {isCreatingBookmark
-                    ? 'Saving bookmark…'
-                    : editingBookmarkId === null
-                      ? 'Save bookmark'
-                      : 'Save changes'}
-                </button>
-              </form>
-
-              {createBookmarkError && (
-                <p className="form-message error-message" role="alert">
-                  {createBookmarkError}
-                </p>
-              )}
-            </section>
-          )}
-
-          {bookmarkError && (
-            <p className="dashboard-message error-message" role="alert">
-              {bookmarkError}
-            </p>
-          )}
-
-          {isLoadingBookmarks && bookmarks.length === 0 && (
-            <p className="dashboard-message">Loading your bookmarks…</p>
-          )}
-
-          {!isLoadingBookmarks && !bookmarkError && bookmarks.length === 0 && (
-            <div className="empty-state">
-              {activeSearch ? (
-                <>
-                  <p className="form-label">No matches</p>
-                  <h2>No bookmark titles match “{activeSearch}”.</h2>
-                  <p>Try a different search term or clear the current search.</p>
-                </>
-              ) : (
-                <>
-                  <p className="form-label">Nothing saved yet</p>
-                  <h2>Your bookmark collection is empty.</h2>
-                  <p>
-                    Select New bookmark to save your first useful page. It will
-                    appear here after the API accepts it.
-                  </p>
-                </>
-              )}
-            </div>
-          )}
-
-          {bookmarks.length > 0 && (
-            <div className="bookmark-grid">
-              {bookmarks.map((bookmark) => (
-                <article className="bookmark-card" key={bookmark.id}>
-                  <div className="bookmark-card-heading">
-                    <span
-                      className={`status-badge status-${bookmark.summary_status}`}
-                    >
-                      {bookmark.summary_status}
-                    </span>
-                    <span className="bookmark-id">#{bookmark.id}</span>
-                  </div>
-
-                  <h2>{bookmark.title}</h2>
-                  {bookmark.description && <p>{bookmark.description}</p>}
-                  {bookmark.summary && (
-                    <p className="bookmark-summary">{bookmark.summary}</p>
-                  )}
-
-                  <div className="bookmark-card-actions">
-                    <a href={bookmark.url} target="_blank" rel="noreferrer">
-                      Visit page
-                    </a>
-                    <div className="card-button-group">
-                      {bookmark.summary_status === 'failed' && (
-                        <button
-                          type="button"
-                          onClick={() => handleRetrySummary(bookmark.id)}
-                          disabled={retryingBookmarkId === bookmark.id}
-                        >
-                          {retryingBookmarkId === bookmark.id
-                            ? 'Retrying…'
-                            : 'Retry summary'}
-                        </button>
-                      )}
-                      <button
-                        className="neutral-card-button"
-                        type="button"
-                        onClick={() => openEditBookmarkForm(bookmark)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="danger-card-button"
-                        type="button"
-                        onClick={() => handleDeleteBookmark(bookmark)}
-                        disabled={deletingBookmarkId === bookmark.id}
-                      >
-                        {deletingBookmarkId === bookmark.id
-                          ? 'Deleting…'
-                          : 'Delete'}
-                      </button>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-
-          {hasMore && (
-            <div className="load-more-row">
-              <button
-                className="secondary-button"
-                type="button"
-                onClick={handleLoadMore}
-                disabled={isLoadingBookmarks}
-              >
-                {isLoadingBookmarks ? 'Loading…' : 'Load more'}
-              </button>
-            </div>
-          )}
-        </section>
+        <Dashboard
+          bookmarks={bookmarks}
+          totalBookmarks={totalBookmarks}
+          hasMore={hasMore}
+          isLoading={isLoadingBookmarks}
+          error={bookmarkError}
+          searchInput={searchInput}
+          activeSearch={activeSearch}
+          showBookmarkForm={activeForm === 'bookmark'}
+          editingBookmarkId={editingBookmarkId}
+          bookmarkUrl={bookmarkUrl}
+          bookmarkTitle={bookmarkTitle}
+          bookmarkDescription={bookmarkDescription}
+          isSaving={isCreatingBookmark}
+          formError={createBookmarkError}
+          retryingBookmarkId={retryingBookmarkId}
+          deletingBookmarkId={deletingBookmarkId}
+          onSearchInputChange={setSearchInput}
+          onSearch={handleSearch}
+          onClearSearch={handleClearSearch}
+          onNewBookmark={openCreateBookmarkForm}
+          onBookmarkUrlChange={setBookmarkUrl}
+          onBookmarkTitleChange={setBookmarkTitle}
+          onBookmarkDescriptionChange={setBookmarkDescription}
+          onSaveBookmark={handleSaveBookmark}
+          onCloseForm={closeForm}
+          onRetrySummary={handleRetrySummary}
+          onEditBookmark={openEditBookmarkForm}
+          onDeleteBookmark={handleDeleteBookmark}
+          onLoadMore={handleLoadMore}
+        />
       ) : (
-        <>
-          <div className="hero-layout">
-        <section className="hero" aria-labelledby="hero-title">
-          <p className="eyebrow">Your useful links, organized</p>
-          <h1 id="hero-title">Save a page. Find it when you need it.</h1>
-          <p className="hero-description">
-            Keep your bookmarks in one private place, search them quickly, and
-            generate short AI summaries of saved pages.
-          </p>
-
-          <div className="hero-actions">
-            <button
-              className="primary-button"
-              type="button"
-              onClick={() => {
-                openForm('register')
-              }}
-            >
-              Create an account
-            </button>
-            <a className="secondary-button" href="#features">
-              Learn more
-            </a>
-          </div>
-        </section>
-
-        {activeForm === 'register' && (
-          <section className="register-panel" aria-labelledby="register-title">
-            <button
-              className="close-button"
-              type="button"
-              aria-label="Close registration form"
-              onClick={closeForm}
-            >
-              ×
-            </button>
-            <p className="form-label">Get started</p>
-            <h2 id="register-title">Create your account</h2>
-            <p className="form-description">
-              Use a valid email and a password with at least eight characters.
-            </p>
-
-            <form className="register-form" onSubmit={handleRegister}>
-              <label htmlFor="register-email">Email address</label>
-              <input
-                id="register-email"
-                type="email"
-                value={registerEmail}
-                onChange={(event) => setRegisterEmail(event.target.value)}
-                placeholder="you@example.com"
-                autoComplete="email"
-                required
-              />
-
-              <label htmlFor="register-password">Password</label>
-              <input
-                id="register-password"
-                type="password"
-                value={registerPassword}
-                onChange={(event) => setRegisterPassword(event.target.value)}
-                placeholder="At least 8 characters"
-                autoComplete="new-password"
-                minLength={8}
-                required
-              />
-
-              <button
-                className="primary-button submit-button"
-                type="submit"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? 'Creating account…' : 'Create account'}
-              </button>
-            </form>
-
-            {message && (
-              <p className="form-message" role="status">
-                {message}
-              </p>
-            )}
-          </section>
-        )}
-
-        {activeForm === 'login' && (
-          <section className="register-panel" aria-labelledby="login-title">
-            <button
-              className="close-button"
-              type="button"
-              aria-label="Close login form"
-              onClick={closeForm}
-            >
-              ×
-            </button>
-            <p className="form-label">Welcome back</p>
-            <h2 id="login-title">Log in to your account</h2>
-            <p className="form-description">
-              Enter the email and password you used when registering.
-            </p>
-
-            <form className="register-form" onSubmit={handleLogin}>
-              <label htmlFor="login-email">Email address</label>
-              <input
-                id="login-email"
-                type="email"
-                value={loginEmail}
-                onChange={(event) => setLoginEmail(event.target.value)}
-                placeholder="you@example.com"
-                autoComplete="email"
-                required
-              />
-
-              <label htmlFor="login-password">Password</label>
-              <input
-                id="login-password"
-                type="password"
-                value={loginPassword}
-                onChange={(event) => setLoginPassword(event.target.value)}
-                placeholder="Your password"
-                autoComplete="current-password"
-                required
-              />
-
-              <button
-                className="primary-button submit-button"
-                type="submit"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? 'Logging in…' : 'Log in'}
-              </button>
-            </form>
-
-            {message && (
-              <p className="form-message" role="status">
-                {message}
-              </p>
-            )}
-
-            <button
-              className="switch-form-button"
-              type="button"
-              onClick={() => openForm('register')}
-            >
-              Need an account? Register
-            </button>
-          </section>
-        )}
-          </div>
-
-          <section
-            className="features"
-            id="features"
-            aria-label="Application features"
-          >
-            <article className="feature-card">
-              <span className="feature-number">01</span>
-              <h2>Save bookmarks</h2>
-              <p>
-                Store a URL, title, and description in your personal collection.
-              </p>
-            </article>
-
-            <article className="feature-card">
-              <span className="feature-number">02</span>
-              <h2>Search quickly</h2>
-              <p>Find saved pages without scrolling through your entire list.</p>
-            </article>
-
-            <article className="feature-card">
-              <span className="feature-number">03</span>
-              <h2>Read summaries</h2>
-              <p>Use your local Ollama model to create concise page summaries.</p>
-            </article>
-          </section>
-        </>
+        <LandingPage
+          activeForm={activeForm}
+          registerEmail={registerEmail}
+          registerPassword={registerPassword}
+          loginEmail={loginEmail}
+          loginPassword={loginPassword}
+          isSubmitting={isSubmitting}
+          message={message}
+          onOpenForm={openForm}
+          onCloseForm={closeForm}
+          onRegisterEmailChange={setRegisterEmail}
+          onRegisterPasswordChange={setRegisterPassword}
+          onLoginEmailChange={setLoginEmail}
+          onLoginPasswordChange={setLoginPassword}
+          onRegister={handleRegister}
+          onLogin={handleLogin}
+        />
       )}
     </main>
   )
