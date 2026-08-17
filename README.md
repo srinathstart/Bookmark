@@ -4,6 +4,12 @@
 
 A full-stack bookmark manager with user authentication, private bookmark collections, search, pagination, and AI-generated page summaries using a local Ollama model.
 
+## Screenshots
+
+![Bookmark Manager landing page](docs/images/landing-page.png)
+
+![Bookmark dashboard with completed AI summaries](docs/images/bookmark-dashboard.png)
+
 ## Features
 
 - Registration and login with JWT authentication and bcrypt password hashing
@@ -50,7 +56,7 @@ Update `.env` with your database URL and secret key:
 DATABASE_URL=mysql+pymysql://user:password@host:port/database
 SECRET_KEY=replace-with-a-random-secret
 OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=llama3.2
+OLLAMA_MODEL=phi3:mini
 ```
 
 Start FastAPI:
@@ -66,7 +72,7 @@ The API is available at `http://127.0.0.1:8000`, with interactive documentation 
 Ollama is optional for the main bookmark features. Without it, summary generation fails gracefully and can be retried later.
 
 ```bash
-ollama pull llama3.2
+ollama pull phi3:mini
 ollama serve
 ```
 
