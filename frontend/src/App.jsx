@@ -4,7 +4,9 @@ import Dashboard from './components/Dashboard'
 import Header from './components/Header'
 import LandingPage from './components/LandingPage'
 
-const API_URL = 'http://127.0.0.1:8000'
+const API_URL = (
+  import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
+).replace(/\/$/, '')
 const PAGE_SIZE = 6
 
 function App() {

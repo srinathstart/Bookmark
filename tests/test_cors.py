@@ -1,3 +1,17 @@
+from main import parse_frontend_origins
+
+
+def test_frontend_origins_are_parsed_from_configuration():
+    origins = parse_frontend_origins(
+        "https://bookmarks.example.com/, https://preview.example.com"
+    )
+
+    assert origins == [
+        "https://bookmarks.example.com",
+        "https://preview.example.com",
+    ]
+
+
 def test_local_frontend_origin_is_allowed(client):
     response = client.options(
         "/register",

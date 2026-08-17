@@ -57,6 +57,7 @@ DATABASE_URL=mysql+pymysql://user:password@host:port/database
 SECRET_KEY=replace-with-a-random-secret
 OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_MODEL=phi3:mini
+FRONTEND_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 ```
 
 Start FastAPI:
@@ -83,6 +84,7 @@ In a separate terminal:
 ```bash
 cd frontend
 npm ci
+cp .env.example .env
 npm run dev
 ```
 
